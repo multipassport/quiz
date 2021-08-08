@@ -1,4 +1,15 @@
+import logging
 import os
+
+from dotenv import load_dotenv
+from telegram import ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+load_dotenv()
 
 
 def read_file(filepath):
@@ -17,6 +28,27 @@ def get_quiz_content(folder):
         yield from zip(questions, answers)
 
 
+def echo(update, context):
+    quiz_keyboard = [['Новый вопрос', 'Сдаться'],
+                       ['Мой счет']]
+    reply_markup = ReplyKeyboardMarkup(quiz_keyboard)
+    update.message.reply_text(update.message.text, reply_markup=reply_markup)
+
+
+def error(update, context):
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
+
+
 if __name__ == '__main__':
     folder = 'questions'
     quiz_content = dict(get_quiz_content(folder))
+    tg_token = os.getenv('TG_BOT_TOKEN')
+
+    updater = Updater(tg_token)
+    dispatcher = updater.dispatcher
+
+    dispatcher.add_handler(MessageHandler(Filters.text, echo))
+
+    dispatcher.add_error_handler(error)
+
+    updater.start_polling()
