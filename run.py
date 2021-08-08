@@ -1,15 +1,20 @@
 import logging
 import os
+import redis
 
 from dotenv import load_dotenv
+from random import choice
 from telegram import ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import (Updater, CommandHandler, MessageHandler,
+                          Filters, CallbackContext, ConversationHandler)
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 load_dotenv()
+
+QUESTION, ANSWER = range(2)
 
 
 def read_file(filepath):
@@ -23,8 +28,14 @@ def get_quiz_content(folder):
         filepath = os.path.join(folder, file)
         file_content = read_file(filepath)
         paragraphs = file_content.split('\n\n')
-        questions = [paragraph for paragraph in paragraphs if paragraph.startswith('Вопрос')]
-        answers = [paragraph for paragraph in paragraphs if paragraph.startswith('Ответ')]
+        questions = [
+            paragraph.split('\n', 1)[-1] for paragraph in paragraphs
+            if paragraph.startswith('Вопрос')
+        ]
+        answers = [
+            paragraph.split('\n', 1)[-1].split('.')[0] for paragraph in paragraphs
+            if paragraph.startswith('Ответ')
+        ]
         yield from zip(questions, answers)
 
 
@@ -34,6 +45,29 @@ def start(update, context):
     reply_markup = ReplyKeyboardMarkup(quiz_keyboard)
     message = 'Привет, я QuizBot!'
     update.message.reply_text(message, reply_markup=reply_markup)
+    return QUESTION
+
+
+def handle_input(update, context):
+    if update.message.text == 'Новый вопрос':
+        quiz_content = dict(get_quiz_content(folder))
+        question, answer = choice(list(quiz_content.items()))
+        redis_db = context.bot_data['redis']
+        chat_id = update.message.chat_id
+        redis_db.set(chat_id, question)
+        update.message.reply_text(question)
+        print(answer)
+        return ANSWER
+
+
+def check_answer(update, context):
+    chat_id = update.message.chat_id
+    question = context.bot_data['redis'].get(chat_id)
+    answer = quiz_content.get(question.decode('utf-8')).lower()
+    if update.message.text.lower() in answer:
+        update.message.reply_text('Верно! Для продолжения нажми «Новый вопрос»')
+        return QUESTION
+    update.message.reply_text('Неверно. Попробуй ещё раз')
 
 
 def error(update, context):
@@ -42,13 +76,28 @@ def error(update, context):
 
 if __name__ == '__main__':
     folder = 'questions'
-    quiz_content = dict(get_quiz_content(folder))
     tg_token = os.getenv('TG_BOT_TOKEN')
+    redis_host = os.getenv('REDIS_ENDPOINT')
+    redis_port = os.getenv('REDIS_PORT')
+    redis_pass = os.getenv('REDIS_PASSWORD')
+    quiz_content = dict(get_quiz_content(folder))
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler('start', start))
+    context = CallbackContext(dispatcher)
+    context.bot_data['redis'] = redis.Redis(host=redis_host, port=redis_port, db=0, password=redis_pass)
+
+    conversation = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+
+        states={
+            QUESTION: [MessageHandler(Filters.text, handle_input)],
+            ANSWER: [MessageHandler(Filters.text, check_answer)],
+        },
+        fallbacks=[MessageHandler(Filters.text, error)]
+    )
+    dispatcher.add_handler(conversation)
 
     dispatcher.add_error_handler(error)
 
