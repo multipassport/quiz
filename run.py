@@ -28,11 +28,12 @@ def get_quiz_content(folder):
         yield from zip(questions, answers)
 
 
-def echo(update, context):
+def start(update, context):
     quiz_keyboard = [['Новый вопрос', 'Сдаться'],
-                       ['Мой счет']]
+                     ['Мой счет']]
     reply_markup = ReplyKeyboardMarkup(quiz_keyboard)
-    update.message.reply_text(update.message.text, reply_markup=reply_markup)
+    message = 'Привет, я QuizBot!'
+    update.message.reply_text(message, reply_markup=reply_markup)
 
 
 def error(update, context):
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(MessageHandler(Filters.text, echo))
+    dispatcher.add_handler(CommandHandler('start', start))
 
     dispatcher.add_error_handler(error)
 
