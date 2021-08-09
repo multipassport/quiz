@@ -12,7 +12,6 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler,
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
-load_dotenv()
 
 QUESTION, ANSWER = range(2)
 
@@ -64,10 +63,20 @@ def check_answer(update, context):
     chat_id = update.message.chat_id
     question = context.bot_data['redis'].get(chat_id)
     answer = quiz_content.get(question.decode('utf-8')).lower()
-    if update.message.text.lower() in answer:
+    if update.message.text.lower() == answer:
         update.message.reply_text('Верно! Для продолжения нажми «Новый вопрос»')
         return QUESTION
     update.message.reply_text('Неверно. Попробуй ещё раз')
+
+
+def give_up(update, context, check_update=False):
+    chat_id = update.message.chat_id
+    quiz_content = dict(get_quiz_content(folder))
+    question = context.bot_data['redis'].get(chat_id)
+    answer = quiz_content.get(question.decode('utf-8'))
+    reply = f'Правильный ответ - {answer}.\nЧтобы продолжить - нажми «Новый вопрос»'
+    context.bot.send_message(chat_id, reply)
+    return QUESTION
 
 
 def error(update, context):
@@ -75,11 +84,14 @@ def error(update, context):
 
 
 if __name__ == '__main__':
+    load_dotenv()
+
     folder = 'questions'
     tg_token = os.getenv('TG_BOT_TOKEN')
     redis_host = os.getenv('REDIS_ENDPOINT')
     redis_port = os.getenv('REDIS_PORT')
     redis_pass = os.getenv('REDIS_PASSWORD')
+
     quiz_content = dict(get_quiz_content(folder))
 
     updater = Updater(tg_token)
@@ -93,7 +105,10 @@ if __name__ == '__main__':
 
         states={
             QUESTION: [MessageHandler(Filters.text, handle_input)],
-            ANSWER: [MessageHandler(Filters.text, check_answer)],
+            ANSWER: [
+                MessageHandler(Filters.text('Сдаться'), give_up),
+                MessageHandler(Filters.text, check_answer),
+            ],
         },
         fallbacks=[MessageHandler(Filters.text, error)]
     )
