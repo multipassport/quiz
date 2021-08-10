@@ -8,34 +8,14 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import (Updater, CommandHandler, MessageHandler,
                           Filters, CallbackContext, ConversationHandler)
 
+from quiz_content import read_file, get_quiz_content
+
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 QUESTION, ANSWER = range(2)
-
-
-def read_file(filepath):
-    with open(filepath, 'r', encoding='KOI8-R') as file:
-        return file.read()
-
-
-def get_quiz_content(folder):
-    files = os.listdir(folder)
-    for file in files:
-        filepath = os.path.join(folder, file)
-        file_content = read_file(filepath)
-        paragraphs = file_content.split('\n\n')
-        questions = [
-            paragraph.split('\n', 1)[-1] for paragraph in paragraphs
-            if paragraph.startswith('Вопрос')
-        ]
-        answers = [
-            paragraph.split('\n', 1)[-1].split('.')[0] for paragraph in paragraphs
-            if paragraph.startswith('Ответ')
-        ]
-        yield from zip(questions, answers)
 
 
 def start(update, context):
@@ -98,7 +78,9 @@ if __name__ == '__main__':
     dispatcher = updater.dispatcher
 
     context = CallbackContext(dispatcher)
-    context.bot_data['redis'] = redis.Redis(host=redis_host, port=redis_port, db=0, password=redis_pass)
+    context.bot_data['redis'] = redis.Redis(
+        host=redis_host, port=redis_port, db=0, password=redis_pass
+    )
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
