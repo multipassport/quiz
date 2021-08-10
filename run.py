@@ -28,17 +28,16 @@ def start(update, context):
 
 
 def handle_input(update, context):
-    if update.message.text == 'Новый вопрос':
-        chat_id = update.message.chat_id
+    chat_id = update.message.chat_id
 
-        quiz_content = context.bot_data['quiz']
-        redis_db = context.bot_data['redis']
+    quiz_content = context.bot_data['quiz']
+    redis_db = context.bot_data['redis']
 
-        question, answer = choice(list(quiz_content.items()))
-        redis_db.set(chat_id, question)
-        update.message.reply_text(question)
+    question, answer = choice(list(quiz_content.items()))
+    redis_db.set(chat_id, question)
+    update.message.reply_text(question)
 
-        return ANSWER
+    return ANSWER
 
 
 def check_answer(update, context):
@@ -89,7 +88,9 @@ def run_bot(tg_token, redis_db, quiz_content):
         entry_points=[CommandHandler('start', start)],
 
         states={
-            QUESTION: [MessageHandler(Filters.text, handle_input)],
+            QUESTION: [
+                MessageHandler(Filters.text('Новый вопрос'), handle_input)
+            ],
             ANSWER: [
                 MessageHandler(Filters.text('Сдаться'), give_up),
                 MessageHandler(Filters.text, check_answer),
