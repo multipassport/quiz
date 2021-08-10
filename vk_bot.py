@@ -9,6 +9,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
 
+from log_handler import TelegramBotHandler
 from quiz import get_quiz_content
 
 
@@ -34,7 +35,6 @@ def greet(event, vk, keyboard):
 def ask(event, vk, keyboard, redis_db, quiz_content):
     question, answer = choice(list(quiz_content.items()))
     redis_db.set(event.user_id, question)
-    print(answer)
     send_message(event, vk, question, keyboard)
 
 
@@ -89,7 +89,7 @@ def run_bot(vk_token, redis_db, quiz_content):
                 check_answer(event, vk, keyboard, redis_db, quiz_content)
 
         except Exception as error:
-            logger.exception(error)
+            logger.exception(f'Message from user {event.user_id} caused {error}')
 
 
 def main():
@@ -100,6 +100,10 @@ def main():
     redis_port = os.getenv('REDIS_PORT')
     redis_pass = os.getenv('REDIS_PASSWORD')
     vk_token = os.getenv('VK_API_KEY')
+    logbot_token = os.getenv('TG_LOG_BOT_TOKEN')
+    chat_id = os.getenv('TG_CHAT_ID')
+
+    logger.addHandler(TelegramBotHandler(logbot_token, chat_id))
 
     redis_db = redis.Redis(
         host=redis_host, port=redis_port, db=0, password=redis_pass

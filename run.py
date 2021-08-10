@@ -8,6 +8,7 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import (Updater, CommandHandler, MessageHandler,
                           Filters, CallbackContext, ConversationHandler)
 
+from log_handler import TelegramBotHandler
 from quiz import get_quiz_content
 
 
@@ -72,7 +73,7 @@ def give_up(update, context):
 
 
 def error(update, context):
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
+    logger.warning(f'Update "{update}" caused error "{context.error}"')
 
 
 def run_bot(tg_token, redis_db, quiz_content):
@@ -111,6 +112,10 @@ def main():
     redis_host = os.getenv('REDIS_ENDPOINT')
     redis_port = os.getenv('REDIS_PORT')
     redis_pass = os.getenv('REDIS_PASSWORD')
+    logbot_token = os.getenv('TG_LOG_BOT_TOKEN')
+    chat_id = os.getenv('TG_CHAT_ID')
+
+    logger.addHandler(TelegramBotHandler(logbot_token, chat_id))
 
     redis_db = redis.Redis(
         host=redis_host, port=redis_port, db=0, password=redis_pass
