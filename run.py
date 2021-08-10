@@ -13,7 +13,7 @@ from quiz import get_quiz_content
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('quiz')
 
 QUESTION, ANSWER = range(2)
 
@@ -29,33 +29,46 @@ def start(update, context):
 
 def handle_input(update, context):
     if update.message.text == 'Новый вопрос':
-        quiz_content = dict(get_quiz_content(folder))
-        question, answer = choice(list(quiz_content.items()))
-        redis_db = context.bot_data['redis']
         chat_id = update.message.chat_id
+
+        quiz_content = context.bot_data['quiz']
+        redis_db = context.bot_data['redis']
+
+        question, answer = choice(list(quiz_content.items()))
         redis_db.set(chat_id, question)
         update.message.reply_text(question)
-        print(answer)
+
         return ANSWER
 
 
 def check_answer(update, context):
     chat_id = update.message.chat_id
-    question = context.bot_data['redis'].get(chat_id)
+    redis_db = context.bot_data['redis']
+    question = redis_db.get(chat_id)
+    quiz_content = context.bot_data['quiz']
+
     answer = quiz_content.get(question.decode('utf-8')).lower()
     if update.message.text.lower() == answer:
         update.message.reply_text('Верно! Для продолжения нажми «Новый вопрос»')
+        redis_db.delete(chat_id)
         return QUESTION
+
     update.message.reply_text('Неверно. Попробуй ещё раз')
 
 
-def give_up(update, context, check_update=False):
+def give_up(update, context):
     chat_id = update.message.chat_id
-    quiz_content = dict(get_quiz_content(folder))
-    question = context.bot_data['redis'].get(chat_id)
+
+    quiz_content = context.bot_data['quiz']
+    redis_db = context.bot_data['redis']
+
+    question = redis_db.get(chat_id)
     answer = quiz_content.get(question.decode('utf-8'))
+    redis_db.delete(chat_id)
+
     reply = f'Правильный ответ - {answer}.\nЧтобы продолжить - нажми «Новый вопрос»'
     context.bot.send_message(chat_id, reply)
+
     return QUESTION
 
 
@@ -63,24 +76,14 @@ def error(update, context):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 
-if __name__ == '__main__':
-    load_dotenv()
-
-    folder = 'questions'
-    tg_token = os.getenv('TG_BOT_TOKEN')
-    redis_host = os.getenv('REDIS_ENDPOINT')
-    redis_port = os.getenv('REDIS_PORT')
-    redis_pass = os.getenv('REDIS_PASSWORD')
-
-    quiz_content = dict(get_quiz_content(folder))
-
+def run_bot(tg_token, redis_db, quiz_content):
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 
     context = CallbackContext(dispatcher)
-    context.bot_data['redis'] = redis.Redis(
-        host=redis_host, port=redis_port, db=0, password=redis_pass
-    )
+    context.bot_data['redis'] = redis_db
+
+    context.bot_data['quiz'] = quiz_content
 
     conversation = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
@@ -95,7 +98,26 @@ if __name__ == '__main__':
         fallbacks=[MessageHandler(Filters.text, error)]
     )
     dispatcher.add_handler(conversation)
-
     dispatcher.add_error_handler(error)
 
     updater.start_polling()
+
+
+def main():
+    load_dotenv()
+
+    tg_token = os.getenv('TG_BOT_TOKEN')
+    redis_host = os.getenv('REDIS_ENDPOINT')
+    redis_port = os.getenv('REDIS_PORT')
+    redis_pass = os.getenv('REDIS_PASSWORD')
+
+    redis_db = redis.Redis(
+        host=redis_host, port=redis_port, db=0, password=redis_pass
+    )
+    quiz_content = dict(get_quiz_content(folder='questions'))
+
+    run_bot(tg_token, redis_db, quiz_content)
+
+
+if __name__ == '__main__':
+    main()

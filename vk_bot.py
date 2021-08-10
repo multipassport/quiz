@@ -12,7 +12,9 @@ from vk_api.utils import get_random_id
 from quiz import get_quiz_content
 
 
-logger = logging.getLogger('intents')
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger('quiz')
 
 
 def send_message(event, vk, message, keyboard):
@@ -37,17 +39,19 @@ def ask(event, vk, keyboard, redis_db, quiz_content):
 
 
 def check_answer(event, vk, keyboard, redis_db, quiz_content):
-    message = 'Неверно. Попробуй ещё раз'
+    message = 'Неверный ответ или команда. Попробуй ещё раз'
     question = redis_db.get(event.user_id).decode('utf-8')
     answer = quiz_content.get(question).lower()
     if answer == event.text.lower():
         message = 'Верно! Для продолжения нажми «Новый вопрос».'
+        redis_db.delete(event.user_id)
 
     send_message(event, vk, message, keyboard)
 
 
 def concede(event, vk, keyboard, redis_db, quiz_content):
     question = redis_db.get(event.user_id).decode('utf-8')
+    redis_db.delete(event.user_id)
     answer = quiz_content.get(question)
     message = f'Правильный ответ {answer}. Для продолжения нажми «Новый вопрос».'
     send_message(event, vk, message, keyboard)
@@ -62,23 +66,9 @@ def set_keyboard():
     return keyboard
 
 
-def main():
-    load_dotenv()
-
-    folder = 'questions'
-    redis_host = os.getenv('REDIS_ENDPOINT')
-    redis_port = os.getenv('REDIS_PORT')
-    redis_pass = os.getenv('REDIS_PASSWORD')
-    vk_token = os.getenv('VK_API_KEY')
-
+def run_bot(vk_token, redis_db, quiz_content):
     vk_session = vk_api.VkApi(token=vk_token)
     vk = vk_session.get_api()
-
-    quiz_content = dict(get_quiz_content(folder))
-
-    redis_db = redis.Redis(
-        host=redis_host, port=redis_port, db=0, password=redis_pass
-    )
 
     keyboard = set_keyboard()
 
@@ -87,7 +77,7 @@ def main():
     for event in longpoll.listen():
         try:
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                if event.message_id == 1 or event.text == 'start':
+                if event.message_id == 1 or event.text.lower() == 'привет':
                     greet(event, vk, keyboard)
                     continue
                 if event.text == 'Новый вопрос':
@@ -100,6 +90,24 @@ def main():
 
         except Exception as error:
             logger.exception(error)
+
+
+def main():
+    load_dotenv()
+
+    folder = 'questions'
+    redis_host = os.getenv('REDIS_ENDPOINT')
+    redis_port = os.getenv('REDIS_PORT')
+    redis_pass = os.getenv('REDIS_PASSWORD')
+    vk_token = os.getenv('VK_API_KEY')
+
+    redis_db = redis.Redis(
+        host=redis_host, port=redis_port, db=0, password=redis_pass
+    )
+
+    quiz_content = dict(get_quiz_content(folder))
+
+    run_bot(vk_token, redis_db, quiz_content)
 
 
 if __name__ == '__main__':
