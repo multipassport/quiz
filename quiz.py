@@ -21,4 +21,3 @@ def get_quiz_content(folder):
             if paragraph.startswith('Ответ')
         ]
         yield from zip(questions, answers)
-
