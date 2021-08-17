@@ -78,16 +78,15 @@ def run_bot(vk_token, redis_db, quiz_content):
 
     for event in longpoll.listen():
         try:
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                if event.message_id == 1 or event.text.lower() == 'привет':
-                    greet(event, vk, keyboard)
-                    continue
-                if event.text == 'Новый вопрос':
-                    ask(event, vk, keyboard, redis_db, quiz_content)
-                    continue
-                if event.text == 'Сдаться':
-                    concede(event, vk, keyboard, redis_db, quiz_content)
-                    continue
+            if not (event.type == VkEventType.MESSAGE_NEW and event.to_me):
+                continue
+            if event.message_id == 1 or event.text.lower() == 'привет':
+                greet(event, vk, keyboard)
+            elif event.text == 'Новый вопрос':
+                ask(event, vk, keyboard, redis_db, quiz_content)
+            elif event.text == 'Сдаться':
+                concede(event, vk, keyboard, redis_db, quiz_content)
+            else:
                 check_answer(event, vk, keyboard, redis_db, quiz_content)
 
         except Exception as error:
