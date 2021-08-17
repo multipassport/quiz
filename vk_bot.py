@@ -31,24 +31,24 @@ def greet(event, vk, keyboard):
 
 def ask(event, vk, keyboard, redis_db, quiz_content):
     question, answer = choice(list(quiz_content.items()))
-    redis_db.set(event.user_id, question)
+    redis_db.set(f'vk-{event.user_id}', question)
     send_message(event, vk, question, keyboard)
 
 
 def check_answer(event, vk, keyboard, redis_db, quiz_content):
     message = 'Неверный ответ или команда. Попробуй ещё раз'
-    question = redis_db.get(event.user_id).decode('utf-8')
+    question = redis_db.get(f'vk-{event.user_id}').decode('utf-8')
     answer = quiz_content.get(question).lower()
     if answer == event.text.lower():
         message = 'Верно! Для продолжения нажми «Новый вопрос».'
-        redis_db.delete(event.user_id)
+        redis_db.delete(f'vk-{event.user_id}')
 
     send_message(event, vk, message, keyboard)
 
 
 def concede(event, vk, keyboard, redis_db, quiz_content):
-    question = redis_db.get(event.user_id).decode('utf-8')
-    redis_db.delete(event.user_id)
+    question = redis_db.get(f'vk-{event.user_id}').decode('utf-8')
+    redis_db.delete(f'vk-{event.user_id}')
     answer = quiz_content.get(question)
     message = f'Правильный ответ {answer}. Для продолжения нажми «Новый вопрос».'
     send_message(event, vk, message, keyboard)
@@ -67,7 +67,7 @@ def run_bot(vk_token, redis_db, quiz_content):
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO
-    )
+        )
 
     vk_session = vk_api.VkApi(token=vk_token)
     vk = vk_session.get_api()

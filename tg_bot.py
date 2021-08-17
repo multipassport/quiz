@@ -17,7 +17,6 @@ QUESTION, ANSWER = range(2)
 
 
 def start(update, context):
-    1/0
     quiz_keyboard = [['Новый вопрос', 'Сдаться'],
                      ['Мой счет']]
     reply_markup = ReplyKeyboardMarkup(quiz_keyboard)
@@ -33,7 +32,7 @@ def handle_input(update, context):
     redis_db = context.bot_data['redis']
 
     question, answer = choice(list(quiz_content.items()))
-    redis_db.set(chat_id, question)
+    redis_db.set(f'tg-{chat_id}', question)
     update.message.reply_text(question)
 
     return ANSWER
@@ -42,13 +41,13 @@ def handle_input(update, context):
 def check_answer(update, context):
     chat_id = update.message.chat_id
     redis_db = context.bot_data['redis']
-    question = redis_db.get(chat_id)
+    question = redis_db.get(f'tg-{chat_id}')
     quiz_content = context.bot_data['quiz']
 
     answer = quiz_content.get(question.decode('utf-8')).lower()
     if update.message.text.lower() == answer:
         update.message.reply_text('Верно! Для продолжения нажми «Новый вопрос»')
-        redis_db.delete(chat_id)
+        redis_db.delete(f'tg-{chat_id}')
         return QUESTION
 
     update.message.reply_text('Неверно. Попробуй ещё раз')
@@ -60,9 +59,9 @@ def give_up(update, context):
     quiz_content = context.bot_data['quiz']
     redis_db = context.bot_data['redis']
 
-    question = redis_db.get(chat_id)
+    question = redis_db.get(f'tg-{chat_id}')
     answer = quiz_content.get(question.decode('utf-8'))
-    redis_db.delete(chat_id)
+    redis_db.delete(f'tg-{chat_id}')
 
     reply = f'Правильный ответ - {answer}.\nЧтобы продолжить - нажми «Новый вопрос»'
     context.bot.send_message(chat_id, reply)
