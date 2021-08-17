@@ -37,13 +37,23 @@ def ask(event, vk, keyboard, redis_db, quiz_content):
 
 def check_answer(event, vk, keyboard, redis_db, quiz_content):
     message = 'Неверный ответ или команда. Попробуй ещё раз'
-    question = redis_db.get(f'vk-{event.user_id}').decode('utf-8')
-    answer = quiz_content.get(question).lower()
-    if answer == event.text.lower():
-        message = 'Верно! Для продолжения нажми «Новый вопрос».'
-        redis_db.delete(f'vk-{event.user_id}')
 
-    send_message(event, vk, message, keyboard)
+    try:
+        question = redis_db.get(f'vk-{event.user_id}').decode('utf-8')
+    except AttributeError:
+        message = 'Напишите "привет" для начала викторины'
+        vk.messages.send(
+            random_id=get_random_id(),
+            user_id=event.user_id,
+            message=message,
+        )
+    else:
+        answer = quiz_content.get(question).lower()
+        if answer == event.text.lower():
+            message = 'Верно! Для продолжения нажми «Новый вопрос».'
+            redis_db.delete(f'vk-{event.user_id}')
+
+        send_message(event, vk, message, keyboard)
 
 
 def concede(event, vk, keyboard, redis_db, quiz_content):
@@ -67,7 +77,7 @@ def run_bot(vk_token, redis_db, quiz_content):
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.INFO
-        )
+    )
 
     vk_session = vk_api.VkApi(token=vk_token)
     vk = vk_session.get_api()
@@ -88,7 +98,6 @@ def run_bot(vk_token, redis_db, quiz_content):
                 concede(event, vk, keyboard, redis_db, quiz_content)
             else:
                 check_answer(event, vk, keyboard, redis_db, quiz_content)
-
         except Exception as error:
             logger.exception(f'Message from user {event.user_id} caused {error}')
 
