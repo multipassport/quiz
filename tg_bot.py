@@ -11,15 +11,13 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler,
 from log_handler import TelegramBotHandler
 from quiz import get_quiz_content
 
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
 logger = logging.getLogger('quiz')
 
 QUESTION, ANSWER = range(2)
 
 
 def start(update, context):
+    1/0
     quiz_keyboard = [['Новый вопрос', 'Сдаться'],
                      ['Мой счет']]
     reply_markup = ReplyKeyboardMarkup(quiz_keyboard)
@@ -77,6 +75,11 @@ def error(update, context):
 
 
 def run_bot(tg_token, redis_db, quiz_content):
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
 

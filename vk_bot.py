@@ -12,9 +12,6 @@ from vk_api.utils import get_random_id
 from log_handler import TelegramBotHandler
 from quiz import get_quiz_content
 
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
 logger = logging.getLogger('quiz')
 
 
@@ -67,6 +64,11 @@ def set_keyboard():
 
 
 def run_bot(vk_token, redis_db, quiz_content):
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+
     vk_session = vk_api.VkApi(token=vk_token)
     vk = vk_session.get_api()
 

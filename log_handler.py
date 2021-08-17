@@ -8,7 +8,7 @@ class TelegramBotHandler(logging.Handler):
         super().__init__()
         self.token = token
         self.chat_id = chat_id
+        self.bot = telegram.Bot(self.token)
 
     def emit(self, record):
-        bot = telegram.Bot(self.token)
-        bot.send_message(chat_id=self.chat_id, text=str(record))
+        self.bot.send_message(chat_id=self.chat_id, text=str(record))
