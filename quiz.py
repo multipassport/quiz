@@ -1,7 +1,7 @@
 import os
 
 
-def read_file(filepath):
+def read_encoded_file(filepath):
     with open(filepath, 'r', encoding='KOI8-R') as file:
         return file.read()
 
@@ -10,7 +10,7 @@ def get_quiz_content(folder):
     files = os.listdir(folder)
     for file in files:
         filepath = os.path.join(folder, file)
-        file_content = read_file(filepath)
+        file_content = read_encoded_file(filepath)
         paragraphs = file_content.split('\n\n')
         questions = [
             paragraph.split('\n', 1)[-1] for paragraph in paragraphs
